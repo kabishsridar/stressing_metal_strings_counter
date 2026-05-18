@@ -1,0 +1,22 @@
+# Flask Server Uploads (Dynamic test files)
+uploads/
+
+# Python compiled cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Operating system files
+Thumbs.db
+db.properties
+.DS_Store
+
+# IDE and Editor configs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp

@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stressing Metal Strings Counter - Diagnostic Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #090d16;
+            --card-bg: #0f172a;
+            --sidebar-bg: #1e293b;
+            --text-color: #f8fafc;
+            --text-muted: #64748b;
+            --accent: #0ea5e9;
+            --accent-glow: rgba(14, 165, 233, 0.4);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.3);
+            --border-color: #1e293b;
+            --input-bg: #0b0f19;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        header {
+            max-width: 1400px;
+            margin: 0 auto 2rem auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+        }
+
+        .logo-section h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-section p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-top: 0.2rem;
+        }
+
+        .env-badge {
+            background-color: rgba(14, 165, 233, 0.15);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            box-shadow: 0 0 10px rgba(14, 165, 233, 0.1);
+        }
+
+        .main-layout {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            height: fit-content;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        h2.section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Drag and Drop Area */
+        .upload-zone {
+            border: 2px dashed #334155;
+            border-radius: 12px;
+            padding: 2rem 1rem;
+            text-align: center;
+            background-color: var(--input-bg);
+            cursor: pointer;
+            transition: border-color 0.3s, background-color 0.3s;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--accent);
+            background-color: rgba(14, 165, 233, 0.05);
+        }
+
+        .upload-zone svg {
+            width: 48px;
+            height: 48px;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            transition: color 0.3s;
+        }
+
+        .upload-zone:hover svg {
+            color: var(--accent);
+        }
+
+        .upload-zone p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .upload-zone strong {
+            color: var(--text-color);
+            display: block;
+            margin-bottom: 0.2rem;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        /* Controls / Sliders */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        .control-label span.val-display {
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #1e293b;
+            outline: none;
+            transition: background 0.3s;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--accent-glow);
+            transition: transform 0.1s;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* Orientation Toggle */
+        .orientation-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.3rem;
+            gap: 0.3rem;
+        }
+
+        .orient-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.6rem;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .orient-btn.active {
+            background-color: var(--sidebar-bg);
+            color: var(--accent);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        /* Dashboard Main Panel */
+        .dashboard-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 6rem 2rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            color: #334155;
+            margin-bottom: 1.5rem;
+        }
+
+        .empty-state h3 {
+            font-size: 1.6rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state p {
+            color: var(--text-muted);
+            max-width: 500px;
+        }
+
+        /* Active Results Grid */
+        .results-container {
+            display: none; /* Shown dynamically when image is processed */
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .summary-header {
+            display: grid;
+            grid-template-columns: 1fr 280px;
+            gap: 2rem;
+        }
+
+        .summary-info {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.8rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .summary-info h3 {
+            font-size: 1.4rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-color);
+        }
+
+        .summary-info .filename-tag {
+            font-family: monospace;
+            background-color: var(--input-bg);
+            padding: 0.3rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            border: 1px solid var(--border-color);
+            width: fit-content;
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+
+        .count-card {
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 20px var(--success-glow);
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .count-card::before {
+            content: "";
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+            top: -50px;
+            right: -50px;
+        }
+
+        .count-card label {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            opacity: 0.8;
+        }
+
+        .count-card .number {
+            font-size: 4.5rem;
+            font-weight: 800;
+            line-height: 1;
+            margin: 0.2rem 0;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .count-card .status-indicator {
+            background-color: rgba(255,255,255,0.2);
+            padding: 0.2rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        /* Interactive Grid Layout */
+        .images-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .viewer-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .viewer-card.full-width {
+            grid-column: span 2;
+        }
+
+        .viewer-card h4 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .viewer-card h4 span.tag {
+            font-size: 0.75rem;
+            background-color: var(--sidebar-bg);
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            color: var(--text-muted);
+        }
+
+        .viewer-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: #020617;
+        }
+
+        /* Loading SpinnerOverlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(9, 13, 22, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-overlay p {
+            font-size: 1.1rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        footer {
+            max-width: 1400px;
+            margin: 3rem auto 0 auto;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border-color);
+            padding-top: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-section">
+            <h1>Stressing Metal Strings Counter</h1>
+            <p>Windows Precision Diagnostic & Tuning Suite</p>
+        </div>
+        <div class="env-badge">ACTIVE: WINDOWS ENVIRONMENT</div>
+    </header>
+
+    <div class="main-layout">
+        <!-- Sidebar Controls -->
+        <div class="sidebar">
+            <h2 class="section-title">Image Ingestion</h2>
+            
+            <div class="upload-zone" id="drop-zone">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                </svg>
+                <strong>Drag & Drop Test Image</strong>
+                <p>or click to choose file</p>
+                <input type="file" id="file-input" accept="image/*">
+            </div>
+
+            <h2 class="section-title">Detection Calibration</h2>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Rod Direction</span>
+                </div>
+                <div class="orientation-selector">
+                    <button class="orient-btn active" id="btn-horizontal" onclick="setOrientation('horizontal')">Horizontal</button>
+                    <button class="orient-btn" id="btn-vertical" onclick="setOrientation('vertical')">Vertical</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Peak Threshold Ratio</span>
+                    <span class="val-display" id="thresh-val">18%</span>
+                </div>
+                <input type="range" class="slider" id="slider-threshold" min="5" max="50" value="18" oninput="updateParam('threshold', this.value)">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Min Rod Spacing</span>
+                    <span class="val-display" id="spacing-val">15 px</span>
+                </div>
+                <input type="range" class="slider" id="slider-spacing" min="5" max="100" value="15" oninput="updateParam('spacing', this.value)">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Smoothing Window</span>
+                    <span class="val-display" id="smoothing-val">11 px</span>
+                </div>
+                <input type="range" class="slider" id="slider-smoothing" min="3" max="51" value="11" step="2" oninput="updateParam('smoothing', this.value)">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Morphological Kernel</span>
+                    <span class="val-display" id="kernel-val">15 px</span>
+                </div>
+                <input type="range" class="slider" id="slider-kernel" min="5" max="49" value="15" step="2" oninput="updateParam('kernel', this.value)">
+            </div>
+        </div>
+
+        <!-- Main Dashboard Viewport -->
+        <div class="dashboard-panel">
+            <!-- Empty State View -->
+            <div class="empty-state" id="empty-state">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                <h3>Ingest a Test Image to Begin</h3>
+                <p>Upload a high-resolution image of your stressing metal strings to run real-time morphology, 1D projection, and peak extraction debugging.</p>
+            </div>
+
+            <!-- Dashboard Content Container (Hidden initially) -->
+            <div class="results-container" id="results-container">
+                <div class="summary-header">
+                    <div class="summary-info">
+                        <h3>Diagnostic Summary</h3>
+                        <div class="filename-tag" id="filename-display">file_name.jpg</div>
+                        <p style="color: var(--text-muted); font-size: 0.9rem;">
+                            1D signal projection operates by integrating pixel intensities across the continuous axis. Spot noise and background variations are mathematically filtered, registering only parallel linear features as peaks.
+                        </p>
+                    </div>
+                    <div class="count-card">
+                        <label>Detected Rod Count</label>
+                        <span class="number" id="count-number">0</span>
+                        <span class="status-indicator">PIPELINE STABLE</span>
+                    </div>
+                </div>
+
+                <div class="images-grid">
+                    <div class="viewer-card">
+                        <h4>1. Processed Detections <span class="tag">OUTPUT</span></h4>
+                        <img id="img-detected" src="" alt="Detected centerlines">
+                    </div>
+
+                    <div class="viewer-card">
+                        <h4>2. Background Cleaning <span class="tag">TOP-HAT MORPHOLOGY</span></h4>
+                        <img id="img-tophat" src="" alt="Top-hat filter result">
+                    </div>
+
+                    <div class="viewer-card full-width">
+                        <h4>3. 1D Intensity Projection Peaks <span class="tag">SIGNAL PROFILE</span></h4>
+                        <img id="img-chart" src="" alt="Signal plot">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner"></div>
+        <p>Processing Image & Extracting Peaks...</p>
+    </div>
+
+    <footer>
+        <p>Antigravity AI Engine &copy; 2026. Stressing Metal Strings Counter Windows Local Environment.</p>
+    </footer>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const emptyState = document.getElementById('empty-state');
+        const resultsContainer = document.getElementById('results-container');
+        const loadingOverlay = document.getElementById('loading-overlay');
+
+        // Global Parameters State
+        let currentFilename = "";
+        let currentOrientation = "horizontal";
+        let params = {
+            threshold: 18,
+            spacing: 15,
+            smoothing: 11,
+            kernel: 15
+        };
+
+        // Drag and Drop Events
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                uploadImage(e.dataTransfer.files[0]);
+            }
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                uploadImage(e.target.files[0]);
+            }
+        });
+
+        // Upload Image
+        function uploadImage(file) {
+            loadingOverlay.style.display = 'flex';
+            const formData = new FormData();
+            formData.append('image', file);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                loadingOverlay.style.display = 'none';
+                if (data.success) {
+                    currentFilename = data.filename;
+                    displayResults(data.results);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(err => {
+                loadingOverlay.style.display = 'none';
+                console.error(err);
+                alert('Upload failed. Ensure Flask server is running.');
+            });
+        }
+
+        // Display Data in Dashboard
+        function displayResults(results) {
+            emptyState.style.display = 'none';
+            resultsContainer.style.display = 'flex';
+            
+            document.getElementById('filename-display').innerText = currentFilename;
+            document.getElementById('count-number').innerText = results.count;
+            document.getElementById('img-detected').src = results.original_img;
+            document.getElementById('img-tophat').src = results.tophat_img;
+            document.getElementById('img-chart').src = results.chart_img;
+        }
+
+        // Handle parameter updates
+        let debounceTimer;
+        function updateParam(name, value) {
+            // Update labels
+            const suffix = (name === 'threshold') ? '%' : ' px';
+            document.getElementById(`${name}-val`).innerText = `${value}${suffix}`;
+            params[name] = value;
+
+            if (!currentFilename) return;
+
+            // Debounce processing to avoid flooding Flask on sliding
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                triggerProcessing();
+            }, 100);
+        }
+
+        function setOrientation(orient) {
+            currentOrientation = orient;
+            document.getElementById('btn-horizontal').classList.toggle('active', orient === 'horizontal');
+            document.getElementById('btn-vertical').classList.toggle('active', orient === 'vertical');
+            
+            if (currentFilename) {
+                triggerProcessing();
+            }
+        }
+
+        // AJAX trigger pipeline processing
+        function triggerProcessing() {
+            if (!currentFilename) return;
+            
+            fetch('/process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    filename: currentFilename,
+                    orientation: currentOrientation,
+                    threshold: params.threshold,
+                    spacing: params.spacing,
+                    smoothing: params.smoothing,
+                    kernel: params.kernel
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    displayResults(data.results);
+                }
+            })
+            .catch(err => console.error(err));
+        }
+    </script>
+</body>
+</html>

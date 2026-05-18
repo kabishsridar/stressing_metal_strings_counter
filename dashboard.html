@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rod Detection Analysis Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #151d30;
+            --text-color: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-green: #34d399;
+            --accent-red: #f87171;
+            --border-color: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        header {
+            max-width: 1400px;
+            margin: 0 auto 3rem auto;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4rem;
+        }
+
+        .section-card {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .grid-comparison {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .img-card {
+            background-color: rgba(11, 15, 25, 0.5);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .img-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(56, 189, 248, 0.1);
+        }
+
+        .img-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.8rem;
+            color: var(--text-color);
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .img-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 1px solid var(--border-color);
+            aspect-ratio: 4/3;
+        }
+
+        .img-card p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.8rem;
+            text-align: center;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .stat-card {
+            background-color: rgba(11, 15, 25, 0.4);
+            border-left: 4px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            padding: 1rem;
+        }
+
+        .stat-card.green {
+            border-left-color: var(--accent-green);
+        }
+
+        .stat-card.red {
+            border-left-color: var(--accent-red);
+        }
+
+        .stat-card label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card value {
+            display: block;
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--text-color);
+            margin-top: 0.2rem;
+        }
+
+        .stat-card desc {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+        }
+
+        .method-info {
+            background: rgba(56, 189, 248, 0.05);
+            border: 1px dashed rgba(56, 189, 248, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .method-info h4 {
+            color: var(--accent);
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .method-info ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .method-info li {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .method-info li::before {
+            content: "✓";
+            color: var(--accent-green);
+            font-weight: bold;
+        }
+
+        footer {
+            max-width: 1400px;
+            margin: 4rem auto 0 auto;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border-color);
+            padding-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Rod & String Detection Dashboard</h1>
+        <p>Advanced Computer Vision & Signal Processing comparisons for selecting and counting metallic strings</p>
+    </header>
+
+    <div class="container">
+        <!-- HORIZONTAL STRINGS SECTION -->
+        <div class="section-card">
+            <h2>Horizontal Metal Strings</h2>
+            <div class="grid-comparison">
+                <div class="img-card">
+                    <h3>1. Original Image</h3>
+                    <img src="img_horizontal_strings.jpeg" alt="Original Horizontal Image">
+                    <p>Raw input image containing horizontal metallic rods/strings with uneven light reflection.</p>
+                </div>
+                <div class="img-card">
+                    <h3>2. Morphological Top-Hat</h3>
+                    <img src="horizontal_1_tophat.jpg" alt="Top-Hat Horizontal">
+                    <p>Filters out the local background light gradient, leaving only thin high-contrast bright features.</p>
+                </div>
+                <div class="img-card">
+                    <h3>3. Contour Selection Mask</h3>
+                    <img src="horizontal_7_contours.jpg" alt="Contours Horizontal">
+                    <p>Detects elongated structures (red boxes). Filters out noise by checking aspect ratio & angle.</p>
+                </div>
+                <div class="img-card">
+                    <h3>4. 1D Projection Detection</h3>
+                    <img src="horizontal_projection_detected.jpg" alt="1D Projection Horizontal">
+                    <p>Identifies exact rod centerlines (red lines) using 1D integration. Bypasses all local spot noise.</p>
+                </div>
+            </div>
+            
+            <div class="method-info">
+                <h4>Why we can isolate the background perfectly:</h4>
+                <ul>
+                    <li><strong>Uneven Illumination:</strong> Top-Hat morphological filtering successfully sets the dark grey background to a perfect, uniform black, leaving only the rods.</li>
+                    <li><strong>Debris and Spots:</strong> Background specks and circular dust spots are eliminated by enforcing an aspect ratio filter (width/height > 3.0) and orientation filter (angle ≈ 0°).</li>
+                    <li><strong>Integrated Signal:</strong> The 1D Horizontal Projection profile averages out any dust and local shadows across the rod length, providing an ultra-robust peak for each rod.</li>
+                </ul>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <label>Resolution</label>
+                    <value>1200 x 1600</value>
+                    <desc>Width x Height pixels</desc>
+                </div>
+                <div class="stat-card green">
+                    <label>1D Projection Count</label>
+                    <value>26</value>
+                    <desc>Highly accurate count of parallel rods</desc>
+                </div>
+                <div class="stat-card red">
+                    <label>Contour Count (Raw)</label>
+                    <value>47</value>
+                    <desc>Elongated segments (broken segments present)</desc>
+                </div>
+                <div class="stat-card">
+                    <label>Hough Line Segments</label>
+                    <value>4,594</value>
+                    <desc>Raw edge tangents detected</desc>
+                </div>
+            </div>
+        </div>
+
+        <!-- VERTICAL STRINGS SECTION -->
+        <div class="section-card">
+            <h2>Vertical Metal Strings</h2>
+            <div class="grid-comparison">
+                <div class="img-card">
+                    <h3>1. Original Image</h3>
+                    <img src="img_vertical_strings.jpeg" alt="Original Vertical Image">
+                    <p>Raw input image containing vertical metallic rods/strings under complex workspace background.</p>
+                </div>
+                <div class="img-card">
+                    <h3>2. Morphological Top-Hat</h3>
+                    <img src="vertical_1_tophat.jpg" alt="Top-Hat Vertical">
+                    <p>Successfully extracts vertical high-intensity segments while darkening the surrounding context.</p>
+                </div>
+                <div class="img-card">
+                    <h3>3. Contour Selection Mask</h3>
+                    <img src="vertical_7_contours.jpg" alt="Contours Vertical">
+                    <p>Draws boxes only around vertical elongated contours, ignoring other background artifacts.</p>
+                </div>
+                <div class="img-card">
+                    <h3>4. 1D Projection Detection</h3>
+                    <img src="vertical_projection_detected.jpg" alt="1D Projection Vertical">
+                    <p>Detects the column coordinate spikes (red lines). Extremely clean and immune to localized noise.</p>
+                </div>
+            </div>
+
+            <div class="method-info">
+                <h4>Why we can isolate the background perfectly:</h4>
+                <ul>
+                    <li><strong>Directional Selectivity:</strong> For vertical strings, we sum along columns. Any noise that is not strictly vertical does not register as a peak.</li>
+                    <li><strong>Top-Hat Contrast Boost:</strong> The dark spaces between the shiny rods are completely blacked out, preventing false detections.</li>
+                    <li><strong>Segment Geometry:</strong> Rotated bounding boxes allow us to verify the orientation of contours (angle ≈ 90°), rejecting non-vertical objects.</li>
+                </ul>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <label>Resolution</label>
+                    <value>1200 x 1600</value>
+                    <desc>Width x Height pixels</desc>
+                </div>
+                <div class="stat-card green">
+                    <label>1D Projection Count</label>
+                    <value>19</value>
+                    <desc>Highly accurate count of parallel rods</desc>
+                </div>
+                <div class="stat-card red">
+                    <label>Contour Count (Raw)</label>
+                    <value>57</value>
+                    <desc>Elongated segments (broken segments present)</desc>
+                </div>
+                <div class="stat-card">
+                    <label>Hough Line Segments</label>
+                    <value>2,677</value>
+                    <desc>Raw edge tangents detected</desc>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Antigravity AI Engine &copy; 2026. Made for Stressing Metal Strings Counter Project.</p>
+    </footer>
+</body>
+</html>
