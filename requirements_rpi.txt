@@ -1,0 +1,12 @@
+# Raspberry Pi 4 Production Suite Dependencies
+
+# Base Math & Array Operations
+numpy>=1.24.0
+
+# Hardware GPIO Pin Control
+RPi.GPIO>=0.7.1
+
+# OpenCV for Image/Camera Acquisition:
+# Use 'opencv-python-headless' to save storage and avoid heavy X11 desktop graphical dependencies.
+# If you are connecting an HDMI screen to the Pi to show cv2.imshow GUI, change this to 'opencv-python'.
+opencv-python-headless>=4.8.0
