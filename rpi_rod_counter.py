@@ -27,15 +27,155 @@ FRAME_HEIGHT = 600
 ROI_BOUNDS = (0.1, 0.9, 0.1, 0.9) 
 
 # Detection Settings
-ORIENTATION = 'horizontal'  # 'horizontal' (rows sum) or 'vertical' (cols sum)
-MIN_ROD_SPACING = 15        # Minimum expected distance between adjacent rods in pixels
-PEAK_THRESHOLD_RATIO = 0.18 # Fraction of max peak intensity to register as a rod
-SMOOTHING_WINDOW = 11       # Moving average window size for peak smoothing
+ORIENTATION = 'horizontal'  # 'horizontal' or 'vertical'
+MIN_ROD_SPACING = 20        # Minimum expected distance between adjacent parallel rods in pixels
+MIN_ROD_LENGTH = 150        # Minimum expected length of a physical rod segment in pixels
 
 # GPIO Setup
 ALERT_PIN = 18              # GPIO pin to trigger buzzer/relay/PLC (Physical Pin 12)
 EXPECTED_ROD_COUNT = 26     # Trigger alert if the count deviates from this
 # =======================================================
+
+import math
+
+def get_line_props(line):
+    x1, y1, x2, y2 = line
+    length = math.hypot(x2 - x1, y2 - y1)
+    angle = math.degrees(math.atan2(y2 - y1, x2 - x1)) % 180
+    
+    A = y2 - y1
+    B = x1 - x2
+    C = x2 * y1 - x1 * y2
+    denom = math.hypot(A, B)
+    rho = abs(C) / denom if denom != 0 else 0
+    return length, angle, rho
+
+def merge_collinear_lines(lines, max_angle_diff=8, max_rho_diff=15, max_gap=150):
+    if len(lines) == 0:
+        return []
+        
+    segments = [line[0] for line in lines]
+    merged = []
+    used = [False] * len(segments)
+    
+    for i in range(len(segments)):
+        if used[i]:
+            continue
+            
+        group = [segments[i]]
+        used[i] = True
+        _, ang_i, rho_i = get_line_props(segments[i])
+        
+        for j in range(i + 1, len(segments)):
+            if used[j]:
+                continue
+                
+            _, ang_j, rho_j = get_line_props(segments[j])
+            
+            ang_diff = abs(ang_i - ang_j)
+            ang_diff = min(ang_diff, 180 - ang_diff)
+            rho_diff = abs(rho_i - rho_j)
+            
+            if ang_diff < max_angle_diff and rho_diff < max_rho_diff:
+                group.append(segments[j])
+                used[j] = True
+                
+        x1, y1, x2, y2 = group[0]
+        is_horizontal = abs(x2 - x1) > abs(y2 - y1)
+        
+        if is_horizontal:
+            group.sort(key=lambda s: min(s[0], s[2]))
+            current = group[0]
+            for next_seg in group[1:]:
+                c_left = min(current[0], current[2])
+                c_right = max(current[0], current[2])
+                n_left = min(next_seg[0], next_seg[2])
+                n_right = max(next_seg[0], next_seg[2])
+                
+                if n_left - c_right < max_gap:
+                    current = [min(c_left, n_left), int((current[1]+next_seg[1])/2),
+                               max(c_right, n_right), int((current[3]+next_seg[3])/2)]
+                else:
+                    merged.append(current)
+                    current = next_seg
+            merged.append(current)
+        else:
+            group.sort(key=lambda s: min(s[1], s[3]))
+            current = group[0]
+            for next_seg in group[1:]:
+                c_top = min(current[1], current[3])
+                c_bot = max(current[1], current[3])
+                n_top = min(next_seg[1], next_seg[3])
+                n_bot = max(next_seg[1], next_seg[3])
+                
+                if n_top - c_bot < max_gap:
+                    current = [int((current[0]+next_seg[0])/2), min(c_top, n_top),
+                               int((current[2]+next_seg[2])/2), max(c_bot, n_bot)]
+                else:
+                    merged.append(current)
+                    current = next_seg
+            merged.append(current)
+            
+    return merged
+
+def merge_parallel_lines(lines, orientation='horizontal', max_dist=25):
+    if len(lines) == 0:
+        return []
+        
+    merged = []
+    used = [False] * len(lines)
+    
+    if orientation == 'horizontal':
+        lines.sort(key=lambda l: (l[1] + l[3]) / 2)
+    else:
+        lines.sort(key=lambda l: (l[0] + l[2]) / 2)
+        
+    for i in range(len(lines)):
+        if used[i]:
+            continue
+            
+        group = [lines[i]]
+        used[i] = True
+        
+        coord_i = (lines[i][1] + lines[i][3])/2 if orientation == 'horizontal' else (lines[i][0] + lines[i][2])/2
+        
+        for j in range(i + 1, len(lines)):
+            if used[j]:
+                continue
+                
+            coord_j = (lines[j][1] + lines[j][3])/2 if orientation == 'horizontal' else (lines[j][0] + lines[j][2])/2
+            
+            if abs(coord_i - coord_j) < max_dist:
+                if orientation == 'horizontal':
+                    left_i, right_i = min(lines[i][0], lines[i][2]), max(lines[i][0], lines[i][2])
+                    left_j, right_j = min(lines[j][0], lines[j][2]), max(lines[j][0], lines[j][2])
+                    overlap = min(right_i, right_j) - max(left_i, left_j)
+                    if overlap > -50:
+                        group.append(lines[j])
+                        used[j] = True
+                else:
+                    top_i, bot_i = min(lines[i][1], lines[i][3]), max(lines[i][1], lines[i][3])
+                    top_j, bot_j = min(lines[j][1], lines[j][3]), max(lines[j][1], lines[j][3])
+                    overlap = min(bot_i, bot_j) - max(top_i, top_j)
+                    if overlap > -50:
+                        group.append(lines[j])
+                        used[j] = True
+                        
+        if len(group) == 1:
+            merged.append(group[0])
+        else:
+            if orientation == 'horizontal':
+                min_x = min([min(l[0], l[2]) for l in group])
+                max_x = max([max(l[0], l[2]) for l in group])
+                y_avg = int(np.mean([l[1] + l[3] for l in group]) / 2)
+                merged.append([min_x, y_avg, max_x, y_avg])
+            else:
+                min_y = min([min(l[1], l[3]) for l in group])
+                max_y = max([max(l[1], l[3]) for l in group])
+                x_avg = int(np.mean([l[0] + l[2] for l in group]) / 2)
+                merged.append([x_avg, min_y, x_avg, max_y])
+                
+    return merged
 
 def setup_gpio():
     if not GPIO_AVAILABLE:
@@ -70,37 +210,48 @@ def process_frame(frame):
     # Convert to grayscale
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     
-    # 2. White Top-Hat Morphological Filter (Clears large shadows/illumination slopes)
-    # RPi 4 is fast enough to do 15x15 rect morphology in < 1ms on 800x600
+    # 2. White Top-Hat Morphological Filter (Clears shadows/uneven light)
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
     tophat = cv2.morphologyEx(gray, cv2.MORPH_TOPHAT, kernel)
     
-    # 3. 1D Projection
-    axis = 1 if ORIENTATION == 'horizontal' else 0
-    profile = np.mean(tophat, axis=axis)
+    # 3. Canny Edge Extraction
+    edges = cv2.Canny(tophat, 50, 150)
     
-    # 4. Smoothing to reject pixel noise
-    smoothed = np.convolve(profile, np.ones(SMOOTHING_WINDOW)/SMOOTHING_WINDOW, mode='same')
+    # 4. Hough Lines Extraction
+    raw_lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=40, minLineLength=50, maxLineGap=10)
     
-    # 5. Peak Finding
-    peaks = []
-    max_val = np.max(smoothed)
-    threshold = max_val * PEAK_THRESHOLD_RATIO if max_val > 10 else 255 # Avoid picking noise in total dark
-    
-    for i in range(MIN_ROD_SPACING, len(smoothed) - MIN_ROD_SPACING):
-        if smoothed[i] > threshold:
-            neighborhood = smoothed[i - MIN_ROD_SPACING : i + MIN_ROD_SPACING + 1]
-            if smoothed[i] == np.max(neighborhood):
-                if len(peaks) == 0 or (i - peaks[-1]) >= MIN_ROD_SPACING:
-                    peaks.append(i)
+    filtered_lines = []
+    if raw_lines is not None:
+        for line in raw_lines:
+            _, angle, _ = get_line_props(line[0])
+            if ORIENTATION == 'horizontal':
+                if angle < 15 or angle > 165:
+                    filtered_lines.append(line)
+            else:
+                if abs(angle - 90) < 15:
+                    filtered_lines.append(line)
                     
-    # Draw detections on output
+    # 5. Collinear Merging
+    collinear_merged = merge_collinear_lines(filtered_lines, max_angle_diff=8, max_rho_diff=15, max_gap=150)
+    
+    # 6. Parallel Suppression (Thickness merging)
+    final_rods = merge_parallel_lines(collinear_merged, orientation=ORIENTATION, max_dist=MIN_ROD_SPACING)
+    
+    # Filter short noise lines
+    final_rods = [l for l in final_rods if math.hypot(l[2]-l[0], l[3]-l[1]) >= MIN_ROD_LENGTH]
+    
+    # Draw centerline detections strictly between endpoints on output ROI
     output_roi = roi.copy()
-    for idx in peaks:
-        if ORIENTATION == 'horizontal':
-            cv2.line(output_roi, (0, idx), (roi.shape[1], idx), (0, 0, 255), 2)
-        else:
-            cv2.line(output_roi, (idx, 0), (idx, roi.shape[0]), (0, 0, 255), 2)
+    for i, line in enumerate(final_rods):
+        x1, y1, x2, y2 = line
+        cv2.line(output_roi, (x1, y1), (x2, y2), (0, 0, 255), 2)
+        cv2.circle(output_roi, (x1, y1), 5, (0, 255, 0), -1)
+        cv2.circle(output_roi, (x2, y2), 5, (0, 255, 0), -1)
+        
+        mid_x = int((x1 + x2) / 2)
+        mid_y = int((y1 + y2) / 2)
+        cv2.putText(output_roi, str(i + 1), (mid_x, mid_y - 10), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 0), 2)
             
     # Reassemble ROI into frame for visual feedback
     output_frame = frame.copy()
@@ -109,7 +260,7 @@ def process_frame(frame):
     # Draw ROI boundaries
     cv2.rectangle(output_frame, (xmin, ymin), (xmax, ymax), (255, 255, 0), 2)
     
-    return output_frame, len(peaks)
+    return output_frame, len(final_rods)
 
 def main():
     setup_gpio()
